@@ -1,0 +1,49 @@
+# Production, following the pattern of kitly/docker-compose-production.yml:
+# external PostgreSQL, reverse proxy via the external network "auto-proxy" (VIRTUAL_HOST / LETSENCRYPT_HOST).
+#
+#   docker compose -f docker-compose-production.yml --env-file .env up -d --build
+#
+# The API has to be served at the root path of its host: the app builds its URLs as
+# <CALCOM_API_BASE_URL>/v2/..., and a path prefix in the base URL would be dropped.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - JAVA_OPTS=-Xmx384m -Xms128m
+      # e.g. Supabase pooler:
+      # jdbc:postgresql://<host>:6543/postgres?sslmode=require&prepareThreshold=0&preferQueryMode=simple&currentSchema=kitly_cal
+      - SPRING_DATASOURCE_URL=${KITLY_CAL_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${KITLY_CAL_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${KITLY_CAL_DATASOURCE_PASSWORD}
+      # Set both when the tables should live in their own schema of a shared database.
+      - SPRING_FLYWAY_DEFAULT_SCHEMA=${KITLY_CAL_DB_SCHEMA:-public}
+      - SPRING_DATASOURCE_HIKARI_SCHEMA=${KITLY_CAL_DB_SCHEMA:-public}
+      - KITLY_CAL_API_KEYS=${KITLY_CAL_API_KEYS}
+      - KITLY_CAL_SANDBOX_API_KEYS=${KITLY_CAL_SANDBOX_API_KEYS:-}
+      - KITLY_CAL_WEBHOOK_URL=${KITLY_CAL_WEBHOOK_URL}
+      - KITLY_CAL_SANDBOX_WEBHOOK_URL=${KITLY_CAL_SANDBOX_WEBHOOK_URL:-}
+      - KITLY_CAL_WEBHOOK_SECRET=${KITLY_CAL_WEBHOOK_SECRET}
+      - VIRTUAL_HOST=${KITLY_CAL_HOST}
+      - VIRTUAL_PORT=8080
+      - LETSENCRYPT_HOST=${KITLY_CAL_HOST}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+    volumes:
+      - ./config:/config:ro
+    expose:
+      - "8080"
+    networks:
+      - auto-proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  auto-proxy:
+    external: true

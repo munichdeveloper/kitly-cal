@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: kitly-cal
+  config:
+    # Event types and availability live outside the jar, see config/kitly-cal.example.yml.
+    import:
+      - optional:file:./config/kitly-cal.yml
+      - optional:file:/config/kitly-cal.yml
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/kitlycal}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: ${PORT:8080}
+  # The app builds its URLs as <CALCOM_API_BASE_URL>/v2/..., so the API has to live at the root path.
+
+kitly-cal:
+  store: jdbc
+  webhook:
+    # Receiver of BOOKING_CREATED, e.g. https://www.digitalsmallbusiness.de/api/cal/webhook (use the www host).
+    url: ${KITLY_CAL_WEBHOOK_URL:}
+    # Receiver for sandbox bookings. Must differ from the live URL. Empty: sandbox bookings send nothing.
+    sandbox-url: ${KITLY_CAL_SANDBOX_WEBHOOK_URL:}
+    # Same value as CALCOM_WEBHOOK_SECRET in the app.
+    secret: ${KITLY_CAL_WEBHOOK_SECRET:}
+    timeout-ms: 10000
+    max-attempts: 6
+  auth:
+    # Comma-separated, at least 24 characters each. Several keys allow rotation.
+    api-keys: ${KITLY_CAL_API_KEYS:}
+    # Keys that act in the sandbox world: no real slots, no mail, no calendar entry, no live webhook.
+    sandbox-api-keys: ${KITLY_CAL_SANDBOX_API_KEYS:}
+  outbox:
+    mode: background
+    polling: true
+    poll-interval-ms: 15000

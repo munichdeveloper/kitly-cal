@@ -1,0 +1,40 @@
+# Profile "mock": everything in memory, nothing here is a real booking.
+# Start with SPRING_PROFILES_ACTIVE=mock (or `docker compose --profile mock up mock`).
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+
+kitly-cal:
+  store: memory
+  time-zone: Europe/Berlin
+  organizer:
+    name: Mock Host
+    email: host@example.com
+  # Monday to Friday 09:00-17:00, one event type of two hours: slots at 09, 11, 13 and 15 o'clock.
+  event-types:
+    - id: 1
+      slug: potenzialanalyse
+      title: Potenzialanalyse
+      duration-minutes: 120
+      location: https://meet.example.com/mock-room
+  availability:
+    weekly:
+      mon: [{ from: "09:00", to: "17:00" }]
+      tue: [{ from: "09:00", to: "17:00" }]
+      wed: [{ from: "09:00", to: "17:00" }]
+      thu: [{ from: "09:00", to: "17:00" }]
+      fri: [{ from: "09:00", to: "17:00" }]
+  webhook:
+    # Without a URL the webhook is only recorded. With one, also set kitly-cal.mock.forward-webhooks=true to send it.
+    url: ${KITLY_CAL_WEBHOOK_URL:https://app.mock/api/cal/webhook}
+    secret: ${KITLY_CAL_WEBHOOK_SECRET:mock-webhook-secret}
+  auth:
+    api-keys: ${KITLY_CAL_API_KEYS:kcal_live_mock_0123456789abcdef}
+    sandbox-api-keys: ${KITLY_CAL_SANDBOX_API_KEYS:kcal_test_mock_0123456789abcdef}
+  mock:
+    forward-webhooks: ${KITLY_CAL_MOCK_FORWARD_WEBHOOKS:false}

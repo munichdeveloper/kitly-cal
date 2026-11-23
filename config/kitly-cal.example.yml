@@ -1,0 +1,41 @@
+# Copy to config/kitly-cal.yml. The values below are placeholders: take working hours, notice,
+# buffers and slot grid from the cal.eu event type this service replaces.
+#
+# Loaded from ./config/kitly-cal.yml (local start) or /config/kitly-cal.yml (container).
+# Platforms without file mounts can pass the same structure as JSON in SPRING_APPLICATION_JSON.
+
+kitly-cal:
+  # Zone in which the availability below is written.
+  time-zone: Europe/Berlin
+
+  organizer:
+    name: Johannes-George Hinkov
+    email: termine@example.com
+
+  event-types:
+    - id: 1                         # value for CALCOM_EVENT_TYPE_ID in the app
+      slug: potenzialanalyse
+      title: KI- & Automatisierungs-Potenzialanalyse
+      duration-minutes: 120         # the app assumes two hours (lib/cal-slots.ts)
+      slot-interval-minutes: 120    # distance between two slot starts; default: the duration
+      minimum-notice-minutes: 1440  # earliest bookable slot from now
+      booking-window-days: 60       # how far ahead; omit for unlimited
+      buffer-before-minutes: 0      # minimum gap between two bookings = before + after
+      buffer-after-minutes: 0
+      location: https://meet.example.com/dein-fester-raum
+
+  availability:
+    weekly:
+      mon: [{ from: "09:00", to: "17:00" }]
+      tue: [{ from: "09:00", to: "17:00" }]
+      wed: [{ from: "09:00", to: "17:00" }]
+      thu: [{ from: "09:00", to: "17:00" }]
+      fri: [{ from: "09:00", to: "13:00" }]
+    # Replaces a single day. No windows = the day is blocked (holiday, vacation).
+    date-overrides:
+      - date: "2026-12-24"
+      - date: "2026-12-31"
+        windows: [{ from: "09:00", to: "11:00" }]
+
+  # When the external calendar cannot be read: "closed" offers no slots, "open" carries on without it.
+  busy-time-failure-mode: closed

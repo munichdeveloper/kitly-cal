@@ -1,0 +1,24 @@
+# Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
