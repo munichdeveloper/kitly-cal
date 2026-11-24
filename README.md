@@ -4,7 +4,7 @@ Eigener Termin-Dienst als Ersatz für cal.eu. Er bildet genau die Teile von cal.
 
 Der Dienst spricht dasselbe Protokoll wie die Cal-API v2. Die App bleibt deshalb unverändert: Umgeschaltet wird nur über ihre vier `CALCOM_*`-Variablen, und genauso schnell wieder zurück.
 
-**Stand:** Der Kern ist gebaut und getestet. Drei Dinge, die cal.eu bisher nebenbei erledigt hat, fehlen noch und müssen vor dem Umschalten geklärt sein: Kalenderabgleich, Bestätigungs-E-Mail, Kalendereintrag. Details in [RISIKEN.md](./RISIKEN.md).
+**Stand:** Der Kern ist gebaut und getestet. Google Kalender ist angebunden: Termine dort blockieren Slots, bestätigte Buchungen landen als Termin mit eigenem Google-Meet-Link im Kalender, und Google schickt dem Kunden die Einladung per E-Mail. Was vor dem Umschalten noch offen ist, steht in [RISIKEN.md](./RISIKEN.md).
 
 Technik: Spring Boot 4.1, Java 17, Maven, PostgreSQL mit Flyway. Kein Frontend.
 
@@ -104,6 +104,28 @@ Geheimnisse und Adressen kommen aus der Umgebung, siehe [`.env.example`](./.env.
 
 Die API muss unter dem Wurzelpfad ihres Hosts liegen. Die App baut ihre Adressen als `<CALCOM_API_BASE_URL>/v2/…`; ein Pfadanteil in der Basis-URL ginge dabei verloren.
 
+## Google Kalender
+
+Mit gesetztem `KITLY_CAL_GOOGLE_REFRESH_TOKEN` gilt:
+
+- **Belegte Zeiten:** Jeder Termin in den Kalendern aus `KITLY_CAL_GOOGLE_BUSY_CALENDAR_IDS` (Standard: der Buchungskalender) blockiert Slots. Abgefragt wird die FreeBusy-API, die Antwort wird je Zeitraum 60 Sekunden zwischengespeichert. Ist ein Kalender nicht lesbar, greift `busy-time-failure-mode` (Standard `closed`: keine Slots statt Doppelbelegung).
+- **Termin bei Bestätigung:** Der Dienst legt im Kalender `KITLY_CAL_GOOGLE_CALENDAR_ID` einen Termin an, mit dem Kunden als Gast und einem eigenen Google-Meet-Link. Google verschickt die Einladung an den Kunden (`send-updates: all`); sie enthält Datum, Meet-Link und „Zum Kalender hinzufügen“. Die Termin-ID wird aus der Buchungs-ID abgeleitet, eine Wiederholung nach Zeitüberschreitung erzeugt also keinen zweiten Termin.
+- Test-Buchungen (Sandbox-Schlüssel) und das Mock-Profil berühren den Kalender nie.
+
+Einrichtung, einmalig, mit dem Google-Konto, dessen Kalender gilt:
+
+1. In der [Google Cloud Console](https://console.cloud.google.com/) ein Projekt anlegen (oder ein vorhandenes nehmen) und die **Google Calendar API** aktivieren.
+2. **OAuth-Zustimmungsbildschirm:** Typ „Extern“, Scopes `https://www.googleapis.com/auth/calendar.events` und `https://www.googleapis.com/auth/calendar.freebusy`, eigenes Konto als Testnutzer. Danach auf **„In Produktion“** stellen; im Status „Test“ verfällt das Refresh-Token nach 7 Tagen. Eine Prüfung durch Google ist für die eigene Nutzung nicht nötig, beim Anmelden erscheint nur ein Warnhinweis.
+3. **Anmeldedaten → OAuth-Client-ID**, Typ „Desktop-App“. Client-ID und Secret in `KITLY_CAL_GOOGLE_CLIENT_ID` und `KITLY_CAL_GOOGLE_CLIENT_SECRET`.
+4. Refresh-Token holen, lokal:
+   ```bash
+   scripts/google-refresh-token.sh <Client-ID> <Client-Secret>
+   ```
+   Das Skript öffnet die Anmeldung, nimmt die Antwort auf `http://127.0.0.1:8765` entgegen und gibt das Token aus. Es gehört in `KITLY_CAL_GOOGLE_REFRESH_TOKEN`, nie ins Repo.
+5. Optional `KITLY_CAL_GOOGLE_BUSY_CALENDAR_IDS`, wenn weitere Kalender (z. B. privat, geteilt) Slots blockieren sollen. Die IDs stehen in Google Kalender unter Einstellungen → Kalender → „Kalender-ID“.
+
+Beim Start meldet der Dienst `Google Calendar connected`. Fehlen Client-ID oder Secret, startet er nicht.
+
 ## Docker
 
 | Datei | Zweck |
@@ -185,7 +207,7 @@ Zurück zu cal.eu: die alten vier Werte wieder eintragen. Die Reihenfolge und di
 - `POST /internal/outbox/run` stößt die Zustellung von Hand an.
 - Webhooks werden bis zu sechsmal versucht (sofort, dann nach 30 s, 2 min, 10 min, 1 h, 6 h).
 - Logs enthalten Buchungs-IDs, keine Namen und keine E-Mail-Adressen.
-- Beim Start warnt der Dienst, solange Kalenderabgleich, Mail-Versand und Kalendereintrag nicht angeschlossen sind.
+- Beim Start warnt der Dienst, solange Kalenderabgleich oder Kalendereintrag nicht angeschlossen sind.
 
 ## Bewusste Abweichungen von cal.eu
 

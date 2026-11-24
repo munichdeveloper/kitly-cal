@@ -98,15 +98,15 @@ public class AppConfig {
         return new ApiKeyFilter(config, clock, json);
     }
 
-    /** These adapters do not exist yet. Say so on every start instead of failing silently later. */
+    /** Say on every start which effects are not connected, instead of failing silently later. */
     @Bean
     ApplicationRunner startupWarnings(CalConfig config, OutboxDispatcher dispatcher, ObjectProvider<BusyTimeProvider> busyTimes) {
         return args -> {
             if (busyTimes.getIfAvailable() == null) {
                 log.warn("No external calendar connected: private appointments of the host do not block slots.");
             }
-            if (!dispatcher.hasNotifier()) {
-                log.warn("No notifier connected: this service sends no confirmation e-mail and no calendar invitation.");
+            if (!dispatcher.hasNotifier() && !dispatcher.hasCalendar()) {
+                log.warn("Neither notifier nor calendar connected: the customer gets no confirmation and no invitation.");
             }
             if (!dispatcher.hasCalendar()) {
                 log.warn("No calendar writer connected: confirmed bookings are not written to the host's calendar.");

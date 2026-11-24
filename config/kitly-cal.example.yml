@@ -22,7 +22,9 @@ kitly-cal:
       booking-window-days: 60       # how far ahead; omit for unlimited
       buffer-before-minutes: 0      # minimum gap between two bookings = before + after
       buffer-after-minutes: 0
-      location: https://meet.example.com/dein-fester-raum
+      # Without Google Calendar: a fixed meeting link here. With Google Calendar every booking gets
+      # its own Meet link; leave location out then.
+      # location: https://meet.google.com/abc-defg-hij
 
   availability:
     weekly:

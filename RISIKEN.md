@@ -1,16 +1,16 @@
 # Risiken und Lücken
 
-Stand: Erstfassung von kitly-cal. Sortiert nach Schwere. „Blocker“ heißt: vor dem Umschalten lösen, sonst merkt es der Kunde.
+Stand: 24.11.2026, mit Google-Kalender-Anbindung. Sortiert nach Schwere. „Blocker“ heißt: vor dem Umschalten lösen, sonst merkt es der Kunde.
 
 ## Kurzfassung
 
-kitly-cal ersetzt alle sechs Aufrufe, die die App `dsb-new` an cal.eu richtet, und ist dagegen getestet. cal.eu hat aber drei Dinge erledigt, die nie im Code der App standen und deshalb jetzt fehlen:
+kitly-cal ersetzt alle sechs Aufrufe, die die App `dsb-new` an cal.eu richtet, und ist dagegen getestet. cal.eu hat drei Dinge erledigt, die nie im Code der App standen. Seit der Google-Kalender-Anbindung (Entscheidung 24.11.2026: Google Kalender mit Meet-Link) übernimmt der Dienst sie, sobald die Google-Zugangsdaten gesetzt sind:
 
-1. **Kalenderabgleich.** Der Dienst kennt nur seine eigenen Buchungen. Private oder andere Termine blockieren keinen Slot.
-2. **Bestätigungs-E-Mail mit Kalendereinladung.** Der Dienst verschickt nichts an den Kunden.
-3. **Kalendereintrag und Meeting-Link.** Bestätigte Termine landen in keinem Kalender, es entsteht kein Google-Meet-Link.
+1. **Kalenderabgleich:** Termine in den konfigurierten Google-Kalendern blockieren Slots (L1).
+2. **Kalendereintrag und Meeting-Link:** Jede bestätigte Buchung wird ein Termin mit eigenem Meet-Link (L3).
+3. **Bestätigung an den Kunden:** Google verschickt die Einladung mit Datum und Meet-Link (L2, siehe dort zur Einschränkung).
 
-Die Seite `/terminbuchung` verspricht dem Kunden alle drei („Terminbestätigung per E-Mail“, „Kalendereintrag mit allen Details“, „Google Meet Link für die Session“). Für alle drei gibt es im Dienst die Anschlussstelle samt Attrappe und Wiederholungslogik, aber keinen echten Adapter.
+Die Seite `/terminbuchung` verspricht dem Kunden genau das („Terminbestätigung per E-Mail“, „Kalendereintrag mit allen Details“, „Google Meet Link für die Session“). Ohne gesetztes Refresh-Token fehlt alles drei wieder.
 
 Dazu kommt beim Umschalten: **Der Dienst weiß nichts von Terminen, die schon in cal.eu stehen.** Ohne Übernahme bietet er bereits verkaufte Slots erneut an.
 
@@ -28,10 +28,10 @@ Ich habe es nicht geändert, weil es nicht zum Auftrag gehört. Die Behebung ist
 
 | # | Lücke | Schwere | Folge | Vorbereitet | Fehlt |
 | --- | --- | --- | --- | --- | --- |
-| L1 | Abgleich mit dem eigenen Kalender | Blocker | Slots werden angeboten, obwohl du schon etwas vorhast. Ein Kunde zahlt 990 € für einen Termin, den du nicht halten kannst. | Schnittstelle `BusyTimeProvider`, Verhalten bei Ausfall einstellbar, Tests mit simuliertem Kalender | Adapter, z. B. Google Calendar FreeBusy. Notlösung bis dahin: Sperrtage über `date-overrides`, was nur ganze Tage oder feste Fenster abbildet und einen Neustart braucht. |
-| L2 | Bestätigungs-Mail an Kunde und an dich | Blocker | Der Kunde bekommt nach der Zahlung nur die Kundenbereich-Mail von Kitly, aber keine Terminbestätigung und keine Einladung. Du selbst erfährst von der Buchung, soweit ich im Code sehe, nur über Airtable. | Schnittstelle `Notifier`, fertige ICS-Datei, Zustellung mit Wiederholung, Test dass genau eine Mail je Bestätigung entsteht | Mail-Versand (z. B. über kitly-mail) und Mailtext |
-| L3 | Kalendereintrag und Meeting-Link | Blocker | Kein Eintrag in deinem Kalender, kein Meet-Link. | Schnittstelle `CalendarWriter`; fester Link über `event-types[].location`, der in Webhook und ICS steht | Adapter für Google Calendar. Mit festem Raum-Link und ICS-Einladung an dich selbst lässt sich L3 vorerst umgehen. |
-| L4 | Übernahme bestehender Termine | Blocker beim Umschalten | Zukünftige cal.eu-Termine sind dem Dienst unbekannt und werden erneut angeboten. | – | Einmaliger Import oder Sperren per `date-overrides`. Mit L1 erledigt es sich, wenn die alten Termine in deinem Kalender stehen. |
+| L1 | Abgleich mit dem eigenen Kalender | Gelöst, sobald Google eingerichtet ist | – | `GoogleBusyTimes` (FreeBusy-API, 60 s Cache, bei Fehler `busy-time-failure-mode`), getestet gegen nachgebildete Google-API | Google-Zugangsdaten setzen (README, „Google Kalender“) und einmal mit echtem Kalender prüfen |
+| L2 | Bestätigungs-Mail an Kunde und an dich | Mittel | Die Bestätigung an den Kunden ist die Google-Einladung („Einladung: … “) mit Meet-Link, kein eigener Mailtext mit deinem Branding. Du selbst siehst die Buchung als Termin in deinem Kalender. | Google-Einladung über `send-updates: all`; zusätzlich Schnittstelle `Notifier` mit ICS-Datei für eine eigene Mail | Nur falls eine eigene, gestaltete Bestätigungs-Mail gewünscht ist: Mail-Versand (z. B. über kitly-mail) und Mailtext |
+| L3 | Kalendereintrag und Meeting-Link | Gelöst, sobald Google eingerichtet ist | – | `GoogleCalendarWriter`: Termin mit Kunde als Gast und eigenem Meet-Link, wiederholungsfest über die aus der Buchungs-ID abgeleitete Termin-ID | Google-Zugangsdaten setzen |
+| L4 | Übernahme bestehender Termine | Niedrig | cal.eu hat seine Buchungen in deinen Google-Kalender geschrieben; über L1 blockieren sie Slots auch in kitly-cal. | L1 | Einmal prüfen, dass die zukünftigen cal.eu-Termine im Kalender stehen |
 | L5 | Stornieren und Umbuchen | Hoch | Sagt ein Kunde ab, lässt sich der Slot nur per SQL freigeben. Der Kunde hat keinen Link dafür. Die App ruft das nie auf, deshalb gibt es keinen Endpunkt. | Zustandsmodell lässt sich erweitern | Endpunkt `cancel` und eine Möglichkeit für dich, ihn auszulösen |
 | L6 | Oberfläche für dich | Mittel | Buchungen siehst du nur über `GET /v2/bookings`, die Datenbank oder Airtable. | Lese-Endpunkte, Outbox-Übersicht | Jede Art von Admin-Ansicht (Frontend war ausdrücklich nicht gefragt) |
 | L7 | Erinnerungen vor dem Termin | Mittel | Falls in cal.eu Workflows oder Erinnerungen aktiv sind, entfallen sie. Ob welche aktiv sind, konnte ich nicht sehen. | – | Prüfen, dann ggf. bauen |
@@ -49,7 +49,7 @@ Ich habe es nicht geändert, weil es nicht zum Auftrag gehört. Die Behebung ist
 
 **R3 – Endgültig gescheiterte Zustellungen bemerkt niemand.** Nach sechs Versuchen gilt ein Webhook als tot. Der Kunde ist dann bestätigt, hat aber keinen Kundenbereich-Zugang. Der Dienst loggt das als Fehler und zeigt es unter `/internal/outbox?status=dead`, schlägt aber nicht von sich aus Alarm. Gegenmittel: Alarm auf diese Logzeile oder regelmäßige Abfrage.
 
-**R4 – Öffentliche Slot-Abfrage ohne Bremse.** `/api/cal/slots` der App ist ohne Anmeldung erreichbar und reicht jede Anfrage an den Dienst durch. Bisher fing cal.eu das ab, jetzt landet es auf dem eigenen Server und später auch im Kontingent der Kalender-API. Der Dienst hat keine Ratenbegrenzung. Gegenmittel: Ergebnis in der App kurz zwischenspeichern oder am Reverse Proxy begrenzen.
+**R4 – Öffentliche Slot-Abfrage ohne Bremse.** `/api/cal/slots` der App ist ohne Anmeldung erreichbar und reicht jede Anfrage an den Dienst durch. Bisher fing cal.eu das ab, jetzt landet es auf dem eigenen Server. Die Google-Abfrage ist je Zeitraum 60 Sekunden zwischengespeichert, gleiche Anfragen kosten also kein Google-Kontingent; unterschiedliche Zeiträume schon. Der Dienst hat keine Ratenbegrenzung. Gegenmittel: Ergebnis in der App kurz zwischenspeichern oder am Reverse Proxy begrenzen.
 
 **R5 – Parallelbetrieb mit cal.eu.** Solange über cal.eu noch gebucht werden kann (öffentliche Seite, andere Event-Typen), kennen sich beide Systeme nicht. Derselbe Slot kann in beiden vergeben werden. Gegenmittel: L1 lösen, bevor beide parallel laufen, oder cal.eu beim Umschalten schließen.
 
@@ -75,6 +75,10 @@ Ich habe es nicht geändert, weil es nicht zum Auftrag gehört. Die Behebung ist
 
 **R15 – Die Produktions-Compose-Datei ist eine Annahme.** `docker-compose-production.yml` folgt dem Muster von `kitly` (Netzwerk `auto-proxy`, `VIRTUAL_HOST`, `LETSENCRYPT_HOST`). Läuft der Zielserver stattdessen hinter Traefik oder in Coolify, passt dieser Teil nicht und muss durch Labels bzw. die Einstellungen dort ersetzt werden.
 
+**R21 – Refresh-Token von Google.** Der Dienst hängt an einem Refresh-Token deines Google-Kontos. Es verfällt, wenn der OAuth-Zustimmungsbildschirm im Status „Test“ bleibt (nach 7 Tagen), wenn du den Zugriff widerrufst oder das Passwort änderst (je nach Kontoeinstellung). Dann bietet der Dienst bei `closed` keine Slots mehr an, und Termineinträge landen nach sechs Versuchen unter `/internal/outbox?status=dead`. Gegenmittel: Zustimmungsbildschirm auf „In Produktion“ stellen, Alarm auf `external calendar unavailable` und `outbox event is dead`.
+
+**R22 – Neue private Termine wirken mit bis zu 60 Sekunden Verzögerung.** Ein privater Termin, den du gerade eingetragen hast, blockiert Slots erst nach bis zu 60 Sekunden (`kitly-cal.google.cache-seconds`).
+
 ### Niedrig
 
 **R16 – Webhook-Signatur ohne Zeitstempel.** Wie bei cal.eu lässt sich ein mitgeschnittener Webhook erneut einspielen. Die Folge wäre eine weitere Kundenbereich-Mail an den echten Kunden (siehe R2), kein Datenabfluss.
@@ -92,7 +96,7 @@ Ich habe es nicht geändert, weil es nicht zum Auftrag gehört. Die Behebung ist
 Empfohlene Reihenfolge:
 
 1. Echte Regeln aus cal.eu in `config/kitly-cal.yml` übertragen (L8).
-2. B1 beheben und L1 bis L3 lösen oder bewusst mit den Notlösungen leben.
+2. B1 beheben (dsb-new#91) und Google einrichten (README, „Google Kalender“).
 3. Dienst mit Datenbank aufsetzen, dann `scripts/smoke.sh` mit Sandbox-Schlüssel.
 4. `POST /internal/webhook/ping` mit dem echten Schlüssel: prüft Adresse, Secret und Weiterleitung. Die Adresse muss die `www`-Domain sein; die Weiterleitung von der Apex-Domain wertet der Dienst als Fehler.
 5. Zukünftige cal.eu-Termine übernehmen oder sperren (L4).
