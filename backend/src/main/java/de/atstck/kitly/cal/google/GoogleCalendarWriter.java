@@ -32,9 +32,21 @@ public class GoogleCalendarWriter implements CalendarWriter {
     }
 
     @Override
+    public boolean acceptsSandbox() {
+        return properties.sandboxCalendarEnabled();
+    }
+
+    @Override
     public void createEvent(ConfirmationContext context) throws Exception {
-        String path = "/calendars/" + GoogleClient.encode(properties.calendar()) + "/events"
-                + "?sendUpdates=" + GoogleClient.encode(properties.updates())
+        boolean sandbox = context.booking().sandbox();
+        if (sandbox && !acceptsSandbox()) {
+            throw new PermanentDeliveryException("No test calendar configured for sandbox bookings.");
+        }
+        // A sandbox booking only ever goes to the test calendar, never to the real one.
+        String calendarId = sandbox ? properties.sandboxCalendar() : properties.calendar();
+        String updates = sandbox ? properties.sandboxUpdates() : properties.updates();
+        String path = "/calendars/" + GoogleClient.encode(calendarId) + "/events"
+                + "?sendUpdates=" + GoogleClient.encode(updates)
                 + (properties.meet() ? "&conferenceDataVersion=1" : "");
         try {
             client.send("POST", path, event(context, properties.meet()));
@@ -47,7 +59,7 @@ public class GoogleCalendarWriter implements CalendarWriter {
             }
             throw e;
         } finally {
-            if (busyTimes != null) {
+            if (busyTimes != null && !sandbox) {
                 busyTimes.invalidate();
             }
         }
@@ -62,7 +74,7 @@ public class GoogleCalendarWriter implements CalendarWriter {
         Booking booking = context.booking();
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("id", eventId(booking.uid()));
-        event.put("summary", context.eventType().title() + " – " + booking.attendee().name());
+        event.put("summary", (booking.sandbox() ? "[TEST] " : "") + context.eventType().title() + " – " + booking.attendee().name());
         event.put("description", "Gebucht über die Website.\n"
                 + "Kunde: " + booking.attendee().name() + " <" + booking.attendee().email() + ">\n"
                 + "Buchung: " + booking.uid());

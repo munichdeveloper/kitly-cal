@@ -10,6 +10,7 @@ public class RecordingCalendar implements CalendarWriter {
 
     private final List<ConfirmationContext> events = new CopyOnWriteArrayList<>();
     private volatile Exception failWith;
+    private volatile boolean acceptsSandbox;
 
     @Override
     public void createEvent(ConfirmationContext context) throws Exception {
@@ -17,6 +18,16 @@ public class RecordingCalendar implements CalendarWriter {
             throw failWith;
         }
         events.add(context);
+    }
+
+    @Override
+    public boolean acceptsSandbox() {
+        return acceptsSandbox;
+    }
+
+    /** Behaves like a writer with a configured test calendar. */
+    public void acceptSandbox(boolean value) {
+        acceptsSandbox = value;
     }
 
     public List<ConfirmationContext> events() {
@@ -30,5 +41,6 @@ public class RecordingCalendar implements CalendarWriter {
     public void reset() {
         events.clear();
         failWith = null;
+        acceptsSandbox = false;
     }
 }

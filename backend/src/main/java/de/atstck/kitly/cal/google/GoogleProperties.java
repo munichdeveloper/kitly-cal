@@ -12,6 +12,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param busyCalendarIds calendars whose appointments block slots; empty = only {@code calendarId}
  * @param sendUpdates     "all": Google e-mails the customer an invitation with the Meet link; "none": silent
  * @param cacheSeconds    how long a free/busy answer is reused for the same range
+ * @param sandboxCalendarId  optional test calendar: sandbox bookings (test API key) are written there,
+ *                           with Meet link, instead of having no calendar effect. Empty = sandbox writes nothing.
+ * @param sandboxSendUpdates send-updates for the test calendar; default "none", so no mail reaches test addresses
  */
 @ConfigurationProperties(prefix = "kitly-cal.google")
 public record GoogleProperties(
@@ -25,7 +28,9 @@ public record GoogleProperties(
         Integer cacheSeconds,
         Integer timeoutMs,
         String apiBaseUrl,
-        String tokenUrl) {
+        String tokenUrl,
+        String sandboxCalendarId,
+        String sandboxSendUpdates) {
 
     public boolean enabled() {
         return hasText(refreshToken);
@@ -43,6 +48,20 @@ public record GoogleProperties(
 
     public String updates() {
         return hasText(sendUpdates) ? sendUpdates.trim() : "all";
+    }
+
+    /** True when sandbox bookings get an entry in the test calendar. */
+    public boolean sandboxCalendarEnabled() {
+        return hasText(sandboxCalendarId);
+    }
+
+    /** The test calendar; only meaningful when {@link #sandboxCalendarEnabled()}. */
+    public String sandboxCalendar() {
+        return hasText(sandboxCalendarId) ? sandboxCalendarId.trim() : null;
+    }
+
+    public String sandboxUpdates() {
+        return hasText(sandboxSendUpdates) ? sandboxSendUpdates.trim() : "none";
     }
 
     public boolean meet() {
@@ -76,6 +95,13 @@ public record GoogleProperties(
         }
         if (!List.of("all", "externalOnly", "none").contains(updates())) {
             problems.add("kitly-cal.google.send-updates must be all, externalOnly or none.");
+        }
+        if (!List.of("all", "externalOnly", "none").contains(sandboxUpdates())) {
+            problems.add("kitly-cal.google.sandbox-send-updates must be all, externalOnly or none.");
+        }
+        if (sandboxCalendarEnabled() && sandboxCalendar().equals(calendar())) {
+            problems.add("kitly-cal.google.sandbox-calendar-id must differ from calendar-id, "
+                    + "otherwise test bookings land in the real calendar.");
         }
         return problems;
     }

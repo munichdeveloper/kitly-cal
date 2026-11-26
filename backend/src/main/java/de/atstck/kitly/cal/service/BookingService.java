@@ -178,7 +178,7 @@ public class BookingService {
         if (!context.sandbox() && dispatcher.hasNotifier()) {
             outbox.add(new NewOutboxEvent(OutboxKind.NOTIFICATION, "{}"));
         }
-        if (!context.sandbox() && dispatcher.hasCalendar()) {
+        if (context.sandbox() ? dispatcher.hasSandboxCalendar() : dispatcher.hasCalendar()) {
             outbox.add(new NewOutboxEvent(OutboxKind.CALENDAR, "{}"));
         }
 

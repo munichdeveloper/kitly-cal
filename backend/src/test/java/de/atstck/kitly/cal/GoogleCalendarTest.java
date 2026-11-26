@@ -82,12 +82,22 @@ class GoogleCalendarTest {
     private GoogleProperties props(List<String> busyIds, Integer cacheSeconds) {
         String base = "http://127.0.0.1:" + server.getAddress().getPort();
         return new GoogleProperties("client", "secret", "refresh", "primary", busyIds, null, null, cacheSeconds, 2000,
-                base + "/api", base + "/token");
+                base + "/api", base + "/token", null, null);
+    }
+
+    private GoogleProperties sandboxProps(String sandboxCalendar, String sandboxUpdates) {
+        String base = "http://127.0.0.1:" + server.getAddress().getPort();
+        return new GoogleProperties("client", "secret", "refresh", "primary", null, null, null, 60, 2000,
+                base + "/api", base + "/token", sandboxCalendar, sandboxUpdates);
     }
 
     private ConfirmationContext context() {
+        return context(false);
+    }
+
+    private ConfirmationContext context(boolean sandbox) {
         CalConfig config = Fixtures.config();
-        Booking booking = new Booking(1, "uid-1", false, 1, BookingStatus.ACCEPTED, START, END, START, END,
+        Booking booking = new Booking(1, "uid-1", sandbox, 1, BookingStatus.ACCEPTED, START, END, START, END,
                 new Attendee("Erika Beispiel", "erika@example.com", "Europe/Berlin", "de"), Map.of(), null,
                 START, START, START, null);
         return new ConfirmationContext(booking, config.eventTypes().get(0), config.organizer());
@@ -182,8 +192,52 @@ class GoogleCalendarTest {
     @Test
     void refusesToStartWithoutClientCredentials() {
         GoogleProperties properties = new GoogleProperties(null, null, "refresh", null, null, "sometimes", null, null,
-                null, null, null);
+                null, null, null, null, null);
         assertThat(properties.problems()).hasSize(2);
-        assertThat(new GoogleProperties(null, null, "", null, null, null, null, null, null, null, null).enabled()).isFalse();
+        assertThat(new GoogleProperties(null, null, "", null, null, null, null, null, null, null, null, null, null)
+                .enabled()).isFalse();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void writesSandboxBookingsOnlyIntoTheTestCalendarWithoutInvitation() throws Exception {
+        GoogleProperties properties = sandboxProps("test-kalender@group.calendar.google.com", null);
+        GoogleCalendarWriter writer = new GoogleCalendarWriter(new GoogleClient(properties, MAPPER, clock), properties, null);
+        assertThat(writer.acceptsSandbox()).isTrue();
+
+        writer.createEvent(context(true));
+
+        Call call = calls.stream().filter(item -> item.path().startsWith("/api/calendars/")).findFirst().orElseThrow();
+        assertThat(call.path()).isEqualTo(
+                "/api/calendars/test-kalender%40group.calendar.google.com/events?sendUpdates=none&conferenceDataVersion=1");
+        Map<String, Object> event = MAPPER.readValue(call.body(), Map.class);
+        assertThat((String) event.get("summary")).startsWith("[TEST] ");
+        assertThat(event).containsKey("conferenceData");
+    }
+
+    @Test
+    void liveBookingsStillGoToTheRealCalendarWhenATestCalendarIsSet() throws Exception {
+        GoogleProperties properties = sandboxProps("test-kalender@group.calendar.google.com", "all");
+        new GoogleCalendarWriter(new GoogleClient(properties, MAPPER, clock), properties, null).createEvent(context(false));
+
+        Call call = calls.stream().filter(item -> item.path().startsWith("/api/calendars/")).findFirst().orElseThrow();
+        assertThat(call.path()).isEqualTo("/api/calendars/primary/events?sendUpdates=all&conferenceDataVersion=1");
+    }
+
+    @Test
+    void withoutTestCalendarASandboxBookingNeverReachesGoogle() {
+        GoogleProperties properties = props(null, 60);
+        GoogleCalendarWriter writer = new GoogleCalendarWriter(new GoogleClient(properties, MAPPER, clock), properties, null);
+
+        assertThat(writer.acceptsSandbox()).isFalse();
+        assertThatThrownBy(() -> writer.createEvent(context(true))).isInstanceOf(PermanentDeliveryException.class);
+        assertThat(calls.stream().filter(call -> call.path().startsWith("/api/calendars/"))).isEmpty();
+    }
+
+    @Test
+    void theTestCalendarMustNotBeTheRealOne() {
+        assertThat(sandboxProps("primary", null).problems()).hasSize(1);
+        assertThat(sandboxProps("test@group.calendar.google.com", "sometimes").problems()).hasSize(1);
+        assertThat(sandboxProps("test@group.calendar.google.com", null).problems()).isEmpty();
     }
 }
