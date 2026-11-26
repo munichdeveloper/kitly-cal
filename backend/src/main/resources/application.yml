@@ -34,6 +34,19 @@ kitly-cal:
     api-keys: ${KITLY_CAL_API_KEYS:}
     # Keys that act in the sandbox world: no real slots, no mail, no calendar entry, no live webhook.
     sandbox-api-keys: ${KITLY_CAL_SANDBOX_API_KEYS:}
+  google:
+    # Google Calendar of the host. Empty refresh token = not connected. Setup: README, "Google Kalender".
+    client-id: ${KITLY_CAL_GOOGLE_CLIENT_ID:}
+    client-secret: ${KITLY_CAL_GOOGLE_CLIENT_SECRET:}
+    refresh-token: ${KITLY_CAL_GOOGLE_REFRESH_TOKEN:}
+    # Calendar for confirmed bookings; "primary" = main calendar of the account.
+    calendar-id: ${KITLY_CAL_GOOGLE_CALENDAR_ID:primary}
+    # Calendars whose appointments block slots, comma-separated. Empty = only calendar-id.
+    busy-calendar-ids: ${KITLY_CAL_GOOGLE_BUSY_CALENDAR_IDS:}
+    # all = Google e-mails the customer the invitation with the Meet link.
+    send-updates: all
+    create-meet-link: true
+    cache-seconds: 60
   outbox:
     mode: background
     polling: true

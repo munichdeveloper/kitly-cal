@@ -1,6 +1,8 @@
 # Build stage
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
+# Keep the build small: it may run on the same small server as the service (Coolify).
+ENV MAVEN_OPTS="-Xmx384m -XX:TieredStopAtLevel=1"
 COPY pom.xml .
 COPY src ./src
 RUN mvn -B clean package -DskipTests

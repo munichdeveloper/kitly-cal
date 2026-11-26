@@ -2,7 +2,7 @@ package de.atstck.kitly.cal.outbox;
 
 /**
  * Writes a confirmed booking into the host's calendar (cal.eu did this in Google Calendar).
- * No implementation exists yet: declare a Spring bean of this type to switch the effect on.
+ * Implemented by {@code GoogleCalendarWriter}; without a bean of this type no calendar entry is created.
  */
 public interface CalendarWriter {
 
