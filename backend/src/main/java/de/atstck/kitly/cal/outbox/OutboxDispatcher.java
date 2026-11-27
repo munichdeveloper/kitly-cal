@@ -65,6 +65,11 @@ public class OutboxDispatcher {
         return calendar != null;
     }
 
+    /** True when sandbox bookings get an entry in a separate test calendar. */
+    public boolean hasSandboxCalendar() {
+        return calendar != null && calendar.acceptsSandbox();
+    }
+
     /** Called after a confirmation wrote new outbox events. */
     public void afterConfirm() {
         switch (config.dispatchMode()) {
@@ -147,10 +152,11 @@ public class OutboxDispatcher {
         }
 
         // Second line of defence: a sandbox booking must never reach a real inbox or calendar.
-        if (event.sandbox()) {
+        // The only exception is a separate test calendar; the writer itself never uses the real one for it.
+        if (event.sandbox() && !(event.kind() == OutboxKind.CALENDAR && hasSandboxCalendar())) {
             throw new PermanentDeliveryException("Sandbox bookings have no notification or calendar effect.");
         }
-        Booking booking = store.getBooking(event.bookingUid(), false)
+        Booking booking = store.getBooking(event.bookingUid(), event.sandbox())
                 .orElseThrow(() -> new PermanentDeliveryException("Booking no longer exists."));
         CalConfig.EventType eventType = config.eventType(booking.eventTypeId())
                 .orElseThrow(() -> new PermanentDeliveryException("Event type is no longer configured."));

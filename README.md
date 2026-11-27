@@ -123,6 +123,7 @@ Einrichtung, einmalig, mit dem Google-Konto, dessen Kalender gilt:
    ```
    Das Skript öffnet die Anmeldung, nimmt die Antwort auf `http://127.0.0.1:8765` entgegen und gibt das Token aus. Es gehört in `KITLY_CAL_GOOGLE_REFRESH_TOKEN`, nie ins Repo.
 5. Optional `KITLY_CAL_GOOGLE_BUSY_CALENDAR_IDS`, wenn weitere Kalender (z. B. privat, geteilt) Slots blockieren sollen. Die IDs stehen in Google Kalender unter Einstellungen → Kalender → „Kalender-ID“.
+6. Optional `KITLY_CAL_GOOGLE_SANDBOX_CALENDAR_ID`: ein eigener Testkalender im selben Google-Konto (z. B. „Kitly-cal Test“). Buchungen mit einem Sandbox-Schlüssel landen dann dort, mit „[TEST]“ im Titel und Meet-Link, nie im echten Kalender. Google verschickt dafür standardmäßig keine Einladung (`KITLY_CAL_GOOGLE_SANDBOX_SEND_UPDATES=none`, mit `all` lässt sich auch die Einladung testen). Der Testkalender muss von `KITLY_CAL_GOOGLE_CALENDAR_ID` verschieden sein; Mails des Dienstes und der Live-Webhook bleiben für Sandbox-Buchungen aus.
 
 Beim Start meldet der Dienst `Google Calendar connected`. Fehlen Client-ID oder Secret, startet er nicht.
 

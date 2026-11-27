@@ -165,6 +165,19 @@ class OutboxDispatcherTest {
     }
 
     @Test
+    void withATestCalendarSandboxBookingsGetACalendarEntryButStillNoMail() {
+        harness.calendar.acceptSandbox(true);
+        Booking confirmed = harness.reserveAndConfirm(Harness.SANDBOX);
+        harness.dispatcher.runOnce(20);
+
+        assertThat(harness.calendar.events()).hasSize(1);
+        assertThat(harness.calendar.events().get(0).booking().uid()).isEqualTo(confirmed.uid());
+        assertThat(harness.calendar.events().get(0).booking().sandbox()).isTrue();
+        assertThat(harness.notifier.confirmations()).isEmpty();
+        assertThat(harness.webhooks.attempts()).isEmpty();
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void sandboxBookingsSendTheirWebhookToTheSandboxUrlWhenOneIsConfigured() {
         Fixtures.Props props = new Fixtures.Props();

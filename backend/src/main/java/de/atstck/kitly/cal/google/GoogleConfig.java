@@ -28,8 +28,9 @@ public class GoogleConfig {
         if (!problems.isEmpty()) {
             throw new ConfigException(problems);
         }
-        log.info("Google Calendar connected: busy calendars={}, send-updates={}, meet={}",
-                properties.busyCalendars().size(), properties.updates(), properties.meet());
+        log.info("Google Calendar connected: busy calendars={}, send-updates={}, meet={}, sandbox calendar={}",
+                properties.busyCalendars().size(), properties.updates(), properties.meet(),
+                properties.sandboxCalendarEnabled() ? "on, send-updates=" + properties.sandboxUpdates() : "off");
         return new GoogleClient(properties, mapper, clock);
     }
 
